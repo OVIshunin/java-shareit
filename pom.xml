@@ -116,7 +116,7 @@
 						<dependency>
 							<groupId>com.puppycrawl.tools</groupId>
 							<artifactId>checkstyle</artifactId>
-							<version>10.3</version>
+							<version>10.12.7</version>
 						</dependency>
 					</dependencies>
 				</plugin>
@@ -215,7 +215,8 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-checkstyle-plugin</artifactId>
-					</plugin>
+                        <version>3.6.0</version>
+                    </plugin>
 					<plugin>
 						<groupId>com.github.spotbugs</groupId>
 						<artifactId>spotbugs-maven-plugin</artifactId>

@@ -11,6 +11,12 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class ErrorHandler {
 
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, String> handleNotFound(AccessDeniedException e) {
+        return Map.of("error", e.getMessage());
+    }
+
     @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, String> handleNotFound(NotFoundException e) {

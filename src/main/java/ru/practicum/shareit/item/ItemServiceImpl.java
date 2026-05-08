@@ -2,6 +2,7 @@ package ru.practicum.shareit.item;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.practicum.shareit.exception.AccessDeniedException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.model.Item;
@@ -58,7 +59,7 @@ public class ItemServiceImpl implements ItemService {
                 .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
 
         if (!existingItem.getOwner().equals(userId)) {
-            throw new NotFoundException("User is not the owner of this item");
+            throw new AccessDeniedException("User is not the owner of this item");
         }
 
         if (itemDto.getName() != null && !itemDto.getName().isBlank()) {

@@ -23,8 +23,8 @@ import ru.practicum.shareit.user.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -43,9 +43,10 @@ public class ItemServiceImpl implements ItemService {
     public List<ItemWithBookingsDto> getUserItems(Long userId) {
         log.info("Getting all items for user id: {}", userId);
 
-        checkUserExists(userId);
+        User owner = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
-        List<Item> items = itemRepository.findByOwnerOrderByIdAsc(userId);
+        List<Item> items = itemRepository.findByOwnerOrderByIdAsc(owner);
         List<ItemWithBookingsDto> result = new ArrayList<>();
 
         for (Item item : items) {
@@ -70,7 +71,8 @@ public class ItemServiceImpl implements ItemService {
     public ItemDto createItem(Long userId, ItemDto itemDto) {
         log.info("Creating item for user id: {}", userId);
 
-        checkUserExists(userId);
+        User owner = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
         if (itemDto.getName() == null || itemDto.getName().isBlank()) {
             throw new ValidationException("Item name cannot be empty");
@@ -82,7 +84,7 @@ public class ItemServiceImpl implements ItemService {
             throw new ValidationException("Item available status cannot be null");
         }
 
-        Item item = itemMapper.toItem(itemDto, userId);
+        Item item = itemMapper.toItem(itemDto, owner);
         item = itemRepository.save(item);
         log.info("Item created with id: {}", item.getId());
 
@@ -94,12 +96,13 @@ public class ItemServiceImpl implements ItemService {
     public ItemDto updateItem(Long itemId, Long userId, ItemDto itemDto) {
         log.info("Updating item id: {} by user: {}", itemId, userId);
 
-        checkUserExists(userId);
+        userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
         Item existingItem = itemRepository.findById(itemId)
                 .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
 
-        if (!existingItem.getOwner().equals(userId)) {
+        if (!Objects.equals(existingItem.getOwner().getId(), userId)) {
             throw new AccessDeniedException("User is not the owner of this item");
         }
 
@@ -137,15 +140,12 @@ public class ItemServiceImpl implements ItemService {
     public CommentDto addComment(Long itemId, Long userId, CommentDto commentDto) {
         log.info("Adding comment to item id: {} by user: {}", itemId, userId);
 
-        // Проверка существования вещи
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
 
-        // Проверка существования пользователя
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
-        // Проверка: пользователь должен арендовать вещь и аренда должна быть завершена
         boolean hasBooked = bookingRepository.existsApprovedBookingByUserAndItemAndEndBefore(
                 userId, itemId, LocalDateTime.now());
 
@@ -153,12 +153,10 @@ public class ItemServiceImpl implements ItemService {
             throw new BadRequestException("User has not booked this item or booking is not completed");
         }
 
-        // Проверка текста комментария
         if (commentDto.getText() == null || commentDto.getText().isBlank()) {
             throw new ValidationException("Comment text cannot be empty");
         }
 
-        // Создание комментария
         Comment comment = itemMapper.toComment(commentDto, itemId, userId);
         comment = commentRepository.save(comment);
         log.info("Comment created with id: {}", comment.getId());
@@ -168,49 +166,25 @@ public class ItemServiceImpl implements ItemService {
 
     // === Вспомогательные методы ===
 
-    private void checkUserExists(Long userId) {
-        if (!userRepository.existsById(userId)) {
-            throw new NotFoundException("User not found with id: " + userId);
-        }
-    }
-
     private ItemWithBookingsDto buildItemWithBookingsAndComments(Item item, Long userId) {
 
-        // Проверяем, является ли пользователь владельцем вещи
-        boolean isOwner = item.getOwner().equals(userId);
+        boolean isOwner = Objects.equals(item.getOwner().getId(), userId);
 
         BookingShortDto lastBooking = null;
         BookingShortDto nextBooking = null;
+        LocalDateTime now = LocalDateTime.now();
 
-        // Даты бронирований видит только владелец
         if (isOwner) {
-            List<Booking> itemBookings = bookingRepository.findByItemIdOrderByStartAsc(item.getId());
-            LocalDateTime now = LocalDateTime.now();
+            // Исправлено: b.getBooker().getId() вместо b.getBookerId()
+            lastBooking = bookingRepository.findLastApprovedBookingByItemId(item.getId(), now)
+                    .map(b -> new BookingShortDto(b.getId(), b.getBooker().getId()))
+                    .orElse(null);
 
-            // Последнее завершенное бронирование
-            List<Booking> pastBookings = itemBookings.stream()
-                    .filter(b -> b.getStatus() == BookingStatus.APPROVED && b.getEnd().isBefore(now))
-                    .sorted(Comparator.comparing(Booking::getEnd).reversed())
-                    .toList();
-
-            if (!pastBookings.isEmpty()) {
-                Booking last = pastBookings.get(0);
-                lastBooking = new BookingShortDto(last.getId(), last.getBookerId());
-            }
-
-            // Ближайшее будущее бронирование
-            List<Booking> futureBookings = itemBookings.stream()
-                    .filter(b -> b.getStatus() == BookingStatus.APPROVED && b.getStart().isAfter(now))
-                    .sorted(Comparator.comparing(Booking::getStart))
-                    .toList();
-
-            if (!futureBookings.isEmpty()) {
-                Booking next = futureBookings.get(0);
-                nextBooking = new BookingShortDto(next.getId(), next.getBookerId());
-            }
+            nextBooking = bookingRepository.findNextApprovedBookingByItemId(item.getId(), now)
+                    .map(b -> new BookingShortDto(b.getId(), b.getBooker().getId()))
+                    .orElse(null);
         }
 
-        // Комментарии видят все пользователи (без изменений)
         List<CommentDto> comments = commentRepository.findByItemIdOrderByCreatedDesc(item.getId())
                 .stream()
                 .map(comment -> {

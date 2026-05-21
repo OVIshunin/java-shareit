@@ -1,6 +1,5 @@
 package ru.practicum.shareit.booking;
 
-
 import org.springframework.stereotype.Component;
 import ru.practicum.shareit.booking.dto.BookingDto;
 import ru.practicum.shareit.booking.model.Booking;
@@ -44,10 +43,17 @@ public class BookingMapper {
         Booking booking = new Booking();
         booking.setStart(dto.getStart());
         booking.setEnd(dto.getEnd());
-        booking.setItemId(item.getId());
-        booking.setBookerId(booker.getId());
+        booking.setItem(item);      // ← было booking.setItemId(item.getId())
+        booking.setBooker(booker);  // ← было booking.setBookerId(booker.getId())
         // Статус устанавливается в сервисе
 
         return booking;
+    }
+
+    public BookingDto toDtoWithEntity(Booking booking) {
+        if (booking == null) {
+            return null;
+        }
+        return toDto(booking, booking.getItem(), booking.getBooker());
     }
 }

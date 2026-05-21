@@ -8,52 +8,161 @@ import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.model.BookingStatus;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
-    // Все бронирования пользователя (booker)
-    List<Booking> findByBookerIdOrderByStartDesc(Long bookerId);
 
-    // Бронирования пользователя по статусу
-    List<Booking> findByBookerIdAndStatusOrderByStartDesc(Long bookerId, BookingStatus status);
+    // === Методы для User (booker) — используем b.booker.id ===
 
-    // Текущие бронирования пользователя
+    @Query("SELECT b FROM Booking b WHERE b.booker.id = :bookerId ORDER BY b.start DESC")
+    List<Booking> findByBookerIdOrderByStartDesc(@Param("bookerId") Long bookerId);
+
+    @Query("SELECT b FROM Booking b WHERE b.booker.id = :bookerId AND b.status = :status ORDER BY b.start DESC")
+    List<Booking> findByBookerIdAndStatusOrderByStartDesc(@Param("bookerId") Long bookerId,
+                                                          @Param("status") BookingStatus status);
+
+    @Query("SELECT b FROM Booking b WHERE b.booker.id = :bookerId AND b.start < :now AND b.end > :now ORDER BY b.start DESC")
     List<Booking> findByBookerIdAndStartBeforeAndEndAfterOrderByStartDesc(
-            Long bookerId, LocalDateTime now1, LocalDateTime now2);
+            @Param("bookerId") Long bookerId,
+            @Param("now") LocalDateTime now1,
+            @Param("now") LocalDateTime now2);
 
-    // Будущие бронирования пользователя
-    List<Booking> findByBookerIdAndStartAfterOrderByStartDesc(Long bookerId, LocalDateTime now);
+    @Query("SELECT b FROM Booking b WHERE b.booker.id = :bookerId AND b.start > :now ORDER BY b.start DESC")
+    List<Booking> findByBookerIdAndStartAfterOrderByStartDesc(@Param("bookerId") Long bookerId,
+                                                              @Param("now") LocalDateTime now);
 
-    // Прошедшие бронирования пользователя
-    List<Booking> findByBookerIdAndEndBeforeOrderByStartDesc(Long bookerId, LocalDateTime now);
+    @Query("SELECT b FROM Booking b WHERE b.booker.id = :bookerId AND b.end < :now ORDER BY b.start DESC")
+    List<Booking> findByBookerIdAndEndBeforeOrderByStartDesc(@Param("bookerId") Long bookerId,
+                                                             @Param("now") LocalDateTime now);
 
-    // Для владельца вещей — все бронирования его вещей
-    @Query("SELECT b FROM Booking b WHERE b.itemId IN (SELECT i.id FROM Item i WHERE i.owner = :ownerId) ORDER BY b.start DESC")
+    // === Методы для Owner (владелец вещей) ===
+
+    @Query("SELECT b FROM Booking b WHERE b.item.owner.id = :ownerId ORDER BY b.start DESC")
     List<Booking> findAllByOwnerItems(@Param("ownerId") Long ownerId);
 
-    // Для владельца по статусу
-    @Query("SELECT b FROM Booking b WHERE b.itemId IN (SELECT i.id FROM Item i WHERE i.owner = :ownerId) AND b.status = :status ORDER BY b.start DESC")
-    List<Booking> findAllByOwnerItemsAndStatus(@Param("ownerId") Long ownerId, @Param("status") BookingStatus status);
+    @Query("SELECT b FROM Booking b WHERE b.item.owner.id = :ownerId AND b.status = :status ORDER BY b.start DESC")
+    List<Booking> findAllByOwnerItemsAndStatus(@Param("ownerId") Long ownerId,
+                                               @Param("status") BookingStatus status);
 
-    // Текущие бронирования для владельца
-    @Query("SELECT b FROM Booking b WHERE b.itemId IN (SELECT i.id FROM Item i WHERE i.owner = :ownerId) AND b.start < :now AND b.end > :now ORDER BY b.start DESC")
-    List<Booking> findAllCurrentByOwnerItems(@Param("ownerId") Long ownerId, @Param("now") LocalDateTime now);
+    @Query("SELECT b FROM Booking b WHERE b.item.owner.id = :ownerId AND b.start < :now AND b.end > :now ORDER BY b.start DESC")
+    List<Booking> findAllCurrentByOwnerItems(@Param("ownerId") Long ownerId,
+                                             @Param("now") LocalDateTime now);
 
-    // Будущие бронирования для владельца
-    @Query("SELECT b FROM Booking b WHERE b.itemId IN (SELECT i.id FROM Item i WHERE i.owner = :ownerId) AND b.start > :now ORDER BY b.start DESC")
-    List<Booking> findAllFutureByOwnerItems(@Param("ownerId") Long ownerId, @Param("now") LocalDateTime now);
+    @Query("SELECT b FROM Booking b WHERE b.item.owner.id = :ownerId AND b.start > :now ORDER BY b.start DESC")
+    List<Booking> findAllFutureByOwnerItems(@Param("ownerId") Long ownerId,
+                                            @Param("now") LocalDateTime now);
 
-    // Прошедшие бронирования для владельца
-    @Query("SELECT b FROM Booking b WHERE b.itemId IN (SELECT i.id FROM Item i WHERE i.owner = :ownerId) AND b.end < :now ORDER BY b.start DESC")
-    List<Booking> findAllPastByOwnerItems(@Param("ownerId") Long ownerId, @Param("now") LocalDateTime now);
+    @Query("SELECT b FROM Booking b WHERE b.item.owner.id = :ownerId AND b.end < :now ORDER BY b.start DESC")
+    List<Booking> findAllPastByOwnerItems(@Param("ownerId") Long ownerId,
+                                          @Param("now") LocalDateTime now);
 
-    // Поиск бронирований по вещи
-    List<Booking> findByItemIdOrderByStartAsc(Long itemId);
+    // === Поиск по вещи ===
 
-    // Проверка, бронировал ли пользователь вещь и завершилось ли бронирование
-    @Query("SELECT COUNT(b) > 0 FROM Booking b WHERE b.bookerId = :userId AND b.itemId = :itemId AND b.status = 'APPROVED' AND b.end < :now")
+    @Query("SELECT b FROM Booking b WHERE b.item.id = :itemId ORDER BY b.start ASC")
+    List<Booking> findByItemIdOrderByStartAsc(@Param("itemId") Long itemId);
+
+    // === Проверка наличия завершённого бронирования ===
+
+    @Query("SELECT COUNT(b) > 0 FROM Booking b WHERE b.booker.id = :userId AND b.item.id = :itemId AND b.status = 'APPROVED' AND b.end < :now")
     boolean existsApprovedBookingByUserAndItemAndEndBefore(
             @Param("userId") Long userId,
             @Param("itemId") Long itemId,
             @Param("now") LocalDateTime now);
+
+    // === Last/Next бронирования для вещи ===
+
+    @Query("SELECT b FROM Booking b WHERE b.item.id = :itemId " +
+            "AND b.status = 'APPROVED' AND b.end < :now " +
+            "ORDER BY b.end DESC LIMIT 1")
+    Optional<Booking> findLastApprovedBookingByItemId(@Param("itemId") Long itemId,
+                                                      @Param("now") LocalDateTime now);
+
+    @Query("SELECT b FROM Booking b WHERE b.item.id = :itemId " +
+            "AND b.status = 'APPROVED' AND b.start > :now " +
+            "ORDER BY b.start ASC LIMIT 1")
+    Optional<Booking> findNextApprovedBookingByItemId(@Param("itemId") Long itemId,
+                                                      @Param("now") LocalDateTime now);
+
+    // === НОВЫЕ МЕТОДЫ С JOIN FETCH (оптимизированные) ===
+
+    // Для getUserBookings()
+    @Query("SELECT b FROM Booking b " +
+            "JOIN FETCH b.item i " +
+            "JOIN FETCH b.booker u " +
+            "WHERE b.booker.id = :bookerId " +
+            "ORDER BY b.start DESC")
+    List<Booking> findByBookerIdWithItemAndBooker(@Param("bookerId") Long bookerId);
+
+    @Query("SELECT b FROM Booking b " +
+            "JOIN FETCH b.item i " +
+            "JOIN FETCH b.booker u " +
+            "WHERE b.booker.id = :bookerId AND b.status = :status " +
+            "ORDER BY b.start DESC")
+    List<Booking> findByBookerIdAndStatusWithItemAndBooker(@Param("bookerId") Long bookerId,
+                                                           @Param("status") BookingStatus status);
+
+    @Query("SELECT b FROM Booking b " +
+            "JOIN FETCH b.item i " +
+            "JOIN FETCH b.booker u " +
+            "WHERE b.booker.id = :bookerId AND b.start < :now AND b.end > :now " +
+            "ORDER BY b.start DESC")
+    List<Booking> findByBookerIdAndCurrentWithItemAndBooker(@Param("bookerId") Long bookerId,
+                                                            @Param("now") LocalDateTime now);
+
+    @Query("SELECT b FROM Booking b " +
+            "JOIN FETCH b.item i " +
+            "JOIN FETCH b.booker u " +
+            "WHERE b.booker.id = :bookerId AND b.start > :now " +
+            "ORDER BY b.start DESC")
+    List<Booking> findByBookerIdAndFutureWithItemAndBooker(@Param("bookerId") Long bookerId,
+                                                           @Param("now") LocalDateTime now);
+
+    @Query("SELECT b FROM Booking b " +
+            "JOIN FETCH b.item i " +
+            "JOIN FETCH b.booker u " +
+            "WHERE b.booker.id = :bookerId AND b.end < :now " +
+            "ORDER BY b.start DESC")
+    List<Booking> findByBookerIdAndPastWithItemAndBooker(@Param("bookerId") Long bookerId,
+                                                         @Param("now") LocalDateTime now);
+
+    // Для getOwnerBookings()
+    @Query("SELECT b FROM Booking b " +
+            "JOIN FETCH b.item i " +
+            "JOIN FETCH b.booker u " +
+            "WHERE i.owner.id = :ownerId " +
+            "ORDER BY b.start DESC")
+    List<Booking> findAllByOwnerWithItemAndBooker(@Param("ownerId") Long ownerId);
+
+    @Query("SELECT b FROM Booking b " +
+            "JOIN FETCH b.item i " +
+            "JOIN FETCH b.booker u " +
+            "WHERE i.owner.id = :ownerId AND b.status = :status " +
+            "ORDER BY b.start DESC")
+    List<Booking> findAllByOwnerAndStatusWithItemAndBooker(@Param("ownerId") Long ownerId,
+                                                           @Param("status") BookingStatus status);
+
+    @Query("SELECT b FROM Booking b " +
+            "JOIN FETCH b.item i " +
+            "JOIN FETCH b.booker u " +
+            "WHERE i.owner.id = :ownerId AND b.start < :now AND b.end > :now " +
+            "ORDER BY b.start DESC")
+    List<Booking> findAllCurrentByOwnerWithItemAndBooker(@Param("ownerId") Long ownerId,
+                                                         @Param("now") LocalDateTime now);
+
+    @Query("SELECT b FROM Booking b " +
+            "JOIN FETCH b.item i " +
+            "JOIN FETCH b.booker u " +
+            "WHERE i.owner.id = :ownerId AND b.start > :now " +
+            "ORDER BY b.start DESC")
+    List<Booking> findAllFutureByOwnerWithItemAndBooker(@Param("ownerId") Long ownerId,
+                                                        @Param("now") LocalDateTime now);
+
+    @Query("SELECT b FROM Booking b " +
+            "JOIN FETCH b.item i " +
+            "JOIN FETCH b.booker u " +
+            "WHERE i.owner.id = :ownerId AND b.end < :now " +
+            "ORDER BY b.start DESC")
+    List<Booking> findAllPastByOwnerWithItemAndBooker(@Param("ownerId") Long ownerId,
+                                                      @Param("now") LocalDateTime now);
 }

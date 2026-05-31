@@ -1,60 +1,21 @@
 package ru.practicum.shareit.item;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import ru.practicum.shareit.item.model.Item;
-import java.util.*;
-import java.util.stream.Collectors;
+import ru.practicum.shareit.user.User;
+import java.util.List;
 
 @Repository
-public class ItemRepository {
-    private final Map<Long, Item> items = new HashMap<>();
-    private long currentId = 1;
+public interface ItemRepository extends JpaRepository<Item, Long> {
 
-    public List<Item> findAll() {
-        return new ArrayList<>(items.values());
-    }
+    // Было: List<Item> findByOwnerOrderByIdAsc(Long ownerId);
+    List<Item> findByOwnerOrderByIdAsc(User owner);
 
-    public Optional<Item> findById(Long id) {
-        return Optional.ofNullable(items.get(id));
-    }
-
-    public List<Item> findByOwnerId(Long ownerId) {
-        return items.values().stream()
-                .filter(item -> item.getOwner().equals(ownerId))
-                .collect(Collectors.toList());
-    }
-
-    public List<Item> search(String text) {
-        if (text == null || text.isBlank()) {
-            return Collections.emptyList();
-        }
-        String lowerText = text.toLowerCase();
-        return items.values().stream()
-                .filter(Item::getAvailable)
-                .filter(item ->
-                        item.getName().toLowerCase().contains(lowerText) ||
-                                item.getDescription().toLowerCase().contains(lowerText)
-                )
-                .collect(Collectors.toList());
-    }
-
-    public Item save(Item item) {
-        if (item.getId() == null) {
-            item.setId(currentId++);
-        }
-        items.put(item.getId(), item);
-        return item;
-    }
-
-    public void update(Item item) {
-        items.put(item.getId(), item);
-    }
-
-    public boolean existsById(Long id) {
-        return items.containsKey(id);
-    }
-
-    public void deleteById(Long id) {
-        items.remove(id);
-    }
+    @Query("SELECT i FROM Item i " +
+            "WHERE (UPPER(i.name) LIKE UPPER(CONCAT('%', ?1, '%')) " +
+            "OR UPPER(i.description) LIKE UPPER(CONCAT('%', ?1, '%'))) " +
+            "AND i.available = true")
+    List<Item> search(String text);
 }

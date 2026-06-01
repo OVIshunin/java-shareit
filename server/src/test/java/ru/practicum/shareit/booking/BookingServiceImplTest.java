@@ -332,4 +332,155 @@ class BookingServiceImplTest {
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("User not found with id: 99");
     }
+
+    @Test
+    void getUserBookings_shouldReturnWaitingBookings() throws Exception {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
+        when(bookingRepository.findByBookerIdAndStatusWithItemAndBooker(2L, BookingStatus.WAITING))
+                .thenReturn(List.of(booking));
+        when(bookingMapper.toDtoWithEntity(booking)).thenReturn(responseBookingDto);
+
+        List<BookingDto> result = bookingService.getUserBookings(2L, "WAITING");
+
+        assertThat(result).hasSize(1);
+        verify(bookingRepository).findByBookerIdAndStatusWithItemAndBooker(2L, BookingStatus.WAITING);
+    }
+
+    @Test
+    void getUserBookings_shouldReturnRejectedBookings() throws Exception {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
+        when(bookingRepository.findByBookerIdAndStatusWithItemAndBooker(2L, BookingStatus.REJECTED))
+                .thenReturn(List.of(booking));
+        when(bookingMapper.toDtoWithEntity(booking)).thenReturn(responseBookingDto);
+
+        List<BookingDto> result = bookingService.getUserBookings(2L, "REJECTED");
+
+        assertThat(result).hasSize(1);
+        verify(bookingRepository).findByBookerIdAndStatusWithItemAndBooker(2L, BookingStatus.REJECTED);
+    }
+
+    @Test
+    void getUserBookings_shouldReturnCurrentBookings() throws Exception {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
+        when(bookingRepository.findByBookerIdAndCurrentWithItemAndBooker(eq(2L), any(LocalDateTime.class)))
+                .thenReturn(List.of(booking));
+        when(bookingMapper.toDtoWithEntity(booking)).thenReturn(responseBookingDto);
+
+        List<BookingDto> result = bookingService.getUserBookings(2L, "CURRENT");
+
+        assertThat(result).hasSize(1);
+        verify(bookingRepository).findByBookerIdAndCurrentWithItemAndBooker(eq(2L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void getUserBookings_shouldReturnPastBookings() throws Exception {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
+        when(bookingRepository.findByBookerIdAndPastWithItemAndBooker(eq(2L), any(LocalDateTime.class)))
+                .thenReturn(List.of(booking));
+        when(bookingMapper.toDtoWithEntity(booking)).thenReturn(responseBookingDto);
+
+        List<BookingDto> result = bookingService.getUserBookings(2L, "PAST");
+
+        assertThat(result).hasSize(1);
+        verify(bookingRepository).findByBookerIdAndPastWithItemAndBooker(eq(2L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void getUserBookings_shouldReturnFutureBookings() throws Exception {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
+        when(bookingRepository.findByBookerIdAndFutureWithItemAndBooker(eq(2L), any(LocalDateTime.class)))
+                .thenReturn(List.of(booking));
+        when(bookingMapper.toDtoWithEntity(booking)).thenReturn(responseBookingDto);
+
+        List<BookingDto> result = bookingService.getUserBookings(2L, "FUTURE");
+
+        assertThat(result).hasSize(1);
+        verify(bookingRepository).findByBookerIdAndFutureWithItemAndBooker(eq(2L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void getOwnerBookings_shouldReturnWaitingBookings() throws Exception {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findAllByOwnerAndStatusWithItemAndBooker(1L, BookingStatus.WAITING))
+                .thenReturn(List.of(booking));
+        when(bookingMapper.toDtoWithEntity(booking)).thenReturn(responseBookingDto);
+
+        List<BookingDto> result = bookingService.getOwnerBookings(1L, "WAITING");
+
+        assertThat(result).hasSize(1);
+        verify(bookingRepository).findAllByOwnerAndStatusWithItemAndBooker(1L, BookingStatus.WAITING);
+    }
+
+    @Test
+    void getOwnerBookings_shouldReturnRejectedBookings() throws Exception {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findAllByOwnerAndStatusWithItemAndBooker(1L, BookingStatus.REJECTED))
+                .thenReturn(List.of(booking));
+        when(bookingMapper.toDtoWithEntity(booking)).thenReturn(responseBookingDto);
+
+        List<BookingDto> result = bookingService.getOwnerBookings(1L, "REJECTED");
+
+        assertThat(result).hasSize(1);
+        verify(bookingRepository).findAllByOwnerAndStatusWithItemAndBooker(1L, BookingStatus.REJECTED);
+    }
+
+    @Test
+    void getOwnerBookings_shouldReturnCurrentBookings() throws Exception {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findAllCurrentByOwnerWithItemAndBooker(eq(1L), any(LocalDateTime.class)))
+                .thenReturn(List.of(booking));
+        when(bookingMapper.toDtoWithEntity(booking)).thenReturn(responseBookingDto);
+
+        List<BookingDto> result = bookingService.getOwnerBookings(1L, "CURRENT");
+
+        assertThat(result).hasSize(1);
+        verify(bookingRepository).findAllCurrentByOwnerWithItemAndBooker(eq(1L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void getOwnerBookings_shouldReturnPastBookings() throws Exception {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findAllPastByOwnerWithItemAndBooker(eq(1L), any(LocalDateTime.class)))
+                .thenReturn(List.of(booking));
+        when(bookingMapper.toDtoWithEntity(booking)).thenReturn(responseBookingDto);
+
+        List<BookingDto> result = bookingService.getOwnerBookings(1L, "PAST");
+
+        assertThat(result).hasSize(1);
+        verify(bookingRepository).findAllPastByOwnerWithItemAndBooker(eq(1L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void getOwnerBookings_shouldReturnFutureBookings() throws Exception {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findAllFutureByOwnerWithItemAndBooker(eq(1L), any(LocalDateTime.class)))
+                .thenReturn(List.of(booking));
+        when(bookingMapper.toDtoWithEntity(booking)).thenReturn(responseBookingDto);
+
+        List<BookingDto> result = bookingService.getOwnerBookings(1L, "FUTURE");
+
+        assertThat(result).hasSize(1);
+        verify(bookingRepository).findAllFutureByOwnerWithItemAndBooker(eq(1L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void getUserBookings_shouldHandleStateCaseInsensitively() throws Exception {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
+        when(bookingRepository.findByBookerIdWithItemAndBooker(2L)).thenReturn(List.of(booking));
+        when(bookingMapper.toDtoWithEntity(booking)).thenReturn(responseBookingDto);
+
+        List<BookingDto> result = bookingService.getUserBookings(2L, "all");
+
+        assertThat(result).hasSize(1);
+        verify(bookingRepository).findByBookerIdWithItemAndBooker(2L);
+    }
+
+    @Test
+    void getUserBookings_shouldThrowExceptionForUnknownState() throws Exception {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(booker));
+
+        assertThatThrownBy(() -> bookingService.getUserBookings(2L, "UNKNOWN"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Unknown state: UNKNOWN");
+    }
 }

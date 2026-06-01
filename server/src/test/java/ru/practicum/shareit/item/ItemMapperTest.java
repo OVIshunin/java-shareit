@@ -2,6 +2,7 @@ package ru.practicum.shareit.item;
 
 import org.junit.jupiter.api.Test;
 import ru.practicum.shareit.booking.dto.BookingShortDto;
+import ru.practicum.shareit.item.comment.Comment;
 import ru.practicum.shareit.item.comment.CommentDto;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.dto.ItemWithBookingsDto;
@@ -100,5 +101,59 @@ class ItemMapperTest {
         ItemWithBookingsDto result = itemMapper.toItemWithBookingsDto(item, null, null, null);
 
         assertThat(result.getComments()).isEmpty();
+    }
+
+    @Test
+    void toCommentDto_shouldConvertCommentToCommentDto() {
+        // given
+        LocalDateTime created = LocalDateTime.now();
+        Comment comment = new Comment(1L, "Отличная вещь!", 1L, 2L, created);
+        String authorName = "John Doe";
+
+        // when
+        CommentDto result = itemMapper.toCommentDto(comment, authorName);
+
+        // then
+        assertThat(result.getId()).isEqualTo(1L);
+        assertThat(result.getText()).isEqualTo("Отличная вещь!");
+        assertThat(result.getAuthorName()).isEqualTo("John Doe");
+        assertThat(result.getCreated()).isEqualTo(created);
+    }
+
+    @Test
+    void toCommentDto_shouldReturnNull_whenCommentIsNull() {
+        // when
+        CommentDto result = itemMapper.toCommentDto(null, "John Doe");
+
+        // then
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void toComment_shouldConvertCommentDtoToComment() {
+        // given
+        CommentDto commentDto = new CommentDto();
+        commentDto.setText("Отличная вещь!");
+        Long itemId = 1L;
+        Long authorId = 2L;
+
+        // when
+        Comment result = itemMapper.toComment(commentDto, itemId, authorId);
+
+        // then
+        assertThat(result.getId()).isNull();
+        assertThat(result.getText()).isEqualTo("Отличная вещь!");
+        assertThat(result.getItemId()).isEqualTo(1L);
+        assertThat(result.getAuthorId()).isEqualTo(2L);
+        assertThat(result.getCreated()).isNotNull();
+    }
+
+    @Test
+    void toComment_shouldReturnNull_whenCommentDtoIsNull() {
+        // when
+        Comment result = itemMapper.toComment(null, 1L, 2L);
+
+        // then
+        assertThat(result).isNull();
     }
 }

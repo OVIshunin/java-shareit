@@ -2,7 +2,6 @@ package ru.practicum.shareit.exception;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -17,7 +16,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
-@AutoConfigureMockMvc
 class ErrorHandlerTest {
 
     @Autowired
@@ -27,12 +25,52 @@ class ErrorHandlerTest {
     private UserService userService;
 
     @Test
+    void shouldReturnForbidden_whenAccessDeniedExceptionThrown() throws Exception {
+        when(userService.updateUser(any(), any()))
+                .thenThrow(new AccessDeniedException("User is not the owner of this item"));
+
+        String json = "{\"name\":\"New Name\"}";
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/users/1")
+                        .contentType("application/json")
+                        .content(json))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("User is not the owner of this item"));
+    }
+
+    @Test
     void shouldReturnNotFound_whenNotFoundExceptionThrown() throws Exception {
         when(userService.getUserById(any())).thenThrow(new NotFoundException("User not found with id: 99"));
 
         mockMvc.perform(get("/users/99"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("User not found with id: 99"));
+    }
+
+    @Test
+    void shouldReturnBadRequest_whenIllegalArgumentExceptionThrown() throws Exception {
+        when(userService.createUser(any())).thenThrow(new IllegalArgumentException("Invalid argument"));
+
+        String json = "{\"name\":\"Test\",\"email\":\"test@example.com\"}";
+
+        mockMvc.perform(post("/users")
+                        .contentType("application/json")
+                        .content(json))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Invalid argument"));
+    }
+
+    @Test
+    void shouldReturnBadRequest_whenIllegalStateExceptionThrown() throws Exception {
+        when(userService.createUser(any())).thenThrow(new IllegalStateException("Illegal state"));
+
+        String json = "{\"name\":\"Test\",\"email\":\"test@example.com\"}";
+
+        mockMvc.perform(post("/users")
+                        .contentType("application/json")
+                        .content(json))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Illegal state"));
     }
 
     @Test
@@ -47,20 +85,6 @@ class ErrorHandlerTest {
                         .content(json))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("Email already exists: test@example.com"));
-    }
-
-    @Test
-    void shouldReturnForbidden_whenAccessDeniedExceptionThrown() throws Exception {
-        when(userService.updateUser(any(), any()))
-                .thenThrow(new AccessDeniedException("User is not the owner of this item"));
-
-        String json = "{\"name\":\"New Name\"}";
-
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/users/1")
-                        .contentType("application/json")
-                        .content(json))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error").value("User is not the owner of this item"));
     }
 
     @Test
@@ -97,6 +121,4 @@ class ErrorHandlerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.error").value("Internal server error: Database connection failed"));
     }
-
-
 }

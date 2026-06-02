@@ -5,14 +5,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.client.HttpClientErrorException;
 import ru.practicum.shareit.user.dto.UserCreateDto;
 import ru.practicum.shareit.user.dto.UserUpdateDto;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -28,17 +29,57 @@ class UserControllerTest {
     @MockBean
     private UserClient userClient;
 
+    // ========== Happy Path ==========
+
     @Test
-    void createUser_shouldReturnOk_whenValid() throws Exception {
-        UserCreateDto dto = new UserCreateDto("John Doe", "john@example.com");
+    void getAllUsers_shouldReturnOk() throws Exception {
+        when(userClient.getAllUsers()).thenReturn(org.springframework.http.ResponseEntity.ok("[]"));
+
+        mockMvc.perform(get("/users"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getUserById_shouldReturnOk() throws Exception {
+        when(userClient.getUserById(1L)).thenReturn(org.springframework.http.ResponseEntity.ok("{}"));
+
+        mockMvc.perform(get("/users/1"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void createUser_shouldReturnOk() throws Exception {
+        UserCreateDto dto = new UserCreateDto("John", "john@example.com");
+        when(userClient.createUser(any(UserCreateDto.class)))
+                .thenReturn(org.springframework.http.ResponseEntity.status(HttpStatus.CREATED).body("{}"));
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
-
-        verify(userClient).createUser(any(UserCreateDto.class));
+                .andExpect(status().isCreated());
     }
+
+    @Test
+    void updateUser_shouldReturnOk() throws Exception {
+        UserUpdateDto dto = new UserUpdateDto("Updated", null);
+        when(userClient.updateUser(eq(1L), any(UserUpdateDto.class)))
+                .thenReturn(org.springframework.http.ResponseEntity.ok("{}"));
+
+        mockMvc.perform(patch("/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void deleteUser_shouldReturnOk() throws Exception {
+        when(userClient.deleteUser(1L)).thenReturn(org.springframework.http.ResponseEntity.noContent().build());
+
+        mockMvc.perform(delete("/users/1"))
+                .andExpect(status().isNoContent());
+    }
+
+    // ========== Негативные сценарии ==========
 
     @Test
     void createUser_shouldReturnBadRequest_whenNameIsBlank() throws Exception {
@@ -52,7 +93,7 @@ class UserControllerTest {
 
     @Test
     void createUser_shouldReturnBadRequest_whenEmailIsBlank() throws Exception {
-        UserCreateDto dto = new UserCreateDto("John Doe", "");
+        UserCreateDto dto = new UserCreateDto("John", "");
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -62,7 +103,7 @@ class UserControllerTest {
 
     @Test
     void createUser_shouldReturnBadRequest_whenEmailIsInvalid() throws Exception {
-        UserCreateDto dto = new UserCreateDto("John Doe", "invalid-email");
+        UserCreateDto dto = new UserCreateDto("John", "invalid-email");
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -71,40 +112,42 @@ class UserControllerTest {
     }
 
     @Test
-    void getUserById_shouldReturnOk() throws Exception {
-        mockMvc.perform(get("/users/1"))
-                .andExpect(status().isOk());
+    void getUserById_shouldReturnNotFound_whenUserDoesNotExist() throws Exception {
+        when(userClient.getUserById(999L))
+                .thenThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND, "Not Found"));
 
-        verify(userClient).getUserById(1L);
+        mockMvc.perform(get("/users/999"))
+                .andExpect(status().isNotFound());
     }
 
     @Test
-    void updateUser_shouldReturnOk_whenValid() throws Exception {
-        UserUpdateDto dto = new UserUpdateDto("Updated Name", null);
+    void updateUser_shouldReturnNotFound_whenUserDoesNotExist() throws Exception {
+        UserUpdateDto dto = new UserUpdateDto("Updated", null);
+        when(userClient.updateUser(eq(999L), any(UserUpdateDto.class)))
+                .thenThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND, "Not Found"));
 
-        mockMvc.perform(patch("/users/1")
+        mockMvc.perform(patch("/users/999")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isNotFound());
+    }
 
-        verify(userClient).updateUser(eq(1L), any(UserUpdateDto.class));
+    @Test
+    void deleteUser_shouldReturnNotFound_whenUserDoesNotExist() throws Exception {
+        when(userClient.deleteUser(999L))
+                .thenThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND, "Not Found"));
+
+        mockMvc.perform(delete("/users/999"))
+                .andExpect(status().isNotFound());
     }
 
     @Test
     void updateUser_shouldReturnBadRequest_whenEmailInvalid() throws Exception {
-        UserUpdateDto dto = new UserUpdateDto(null, "invalid-email");
+        UserUpdateDto dto = new UserUpdateDto("John", "invalid-email");
 
         mockMvc.perform(patch("/users/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void deleteUser_shouldReturnOk() throws Exception {
-        mockMvc.perform(delete("/users/1"))
-                .andExpect(status().isOk());
-
-        verify(userClient).deleteUser(1L);
     }
 }

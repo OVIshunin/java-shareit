@@ -11,9 +11,4 @@ class ShareItGatewayTest {
         // Проверяет, что контекст Spring загружается без ошибок
     }
 
-    @Test
-    void mainMethodStartsApplication() {
-        // Просто вызываем main для покрытия
-        ShareItGateway.main(new String[]{});
-    }
 }

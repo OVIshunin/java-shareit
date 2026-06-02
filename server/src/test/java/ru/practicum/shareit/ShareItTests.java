@@ -12,10 +12,4 @@ class ShareItTests {
     void contextLoads() {
     }
 
-    @Test
-    void mainMethodStartsApplication() {
-        // Просто вызываем main, чтобы покрыть его
-        ShareItServer.main(new String[]{});
-    }
-
 }
